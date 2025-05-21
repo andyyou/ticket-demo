@@ -448,3 +448,439 @@ Act as a senior Laravel developer, follow Laravel conventions, and PSR-1, PSR-2,
 - **測試與部署準備**: 2 週
 
 總計預估開發時間: 14 週 (約 3.5 個月)
+
+### 5. 資料庫設計與實現紀錄
+
+#### 5.1 模型設計調整
+
+在資料庫設計階段，我們基於需求文件進行了以下關鍵調整：
+
+1. **UUID 主鍵**: 
+   - 使用 UUID 作為所有模型的主鍵，而非自增 ID
+   - 實現 `HasUuid` trait 在所有模型中重用
+   - 確保 UUID 在創建模型前自動生成
+
+2. **欄位命名和類型調整**:
+   - 使用更具描述性的欄位命名 (如 `featured_image_url`)
+   - 在資料庫層使用 varchar 儲存狀態，但在模型層使用常量定義枚舉值
+   - 使用適當的資料類型與長度限制（如 decimal(10,2) 用於金額）
+
+3. **座位組機制**:
+   - 設計 `SeatGroup` 模型允許預設座位配置可以重複使用
+   - 與 `Ticket` 和 `Seat` 建立關聯，減少重複設定座位的工作
+
+4. **防止高併發超賣**:
+   - 對座位票使用唯一索引 (`UNIQUE INDEX (ticket_id, seat_id)`) 確保一個座位只能售出一次
+   - 對一般票券實現購買令牌機制 (`purchase_token`)
+   - 使用資料庫事務確保原子性操作
+
+5. **金流相關欄位**:
+   - 在 `orders` 表添加多種支付提供者欄位
+   - 設計 `payment_details` JSON 欄位存儲不同支付提供商的特定資訊
+
+#### 5.2 已實現的模型和遷移檔案
+
+以下是已完成實現的模型和對應的遷移檔案：
+
+1. **User 和身份驗證相關**:
+   - `User` 模型（整合 Laravel Sanctum、SoftDeletes）
+   - `0001_01_01_000000_create_users_table.php`
+
+2. **活動與票務核心功能**:
+   - `Event` 模型: 活動基本資訊和狀態管理
+   - `Ticket` 模型: 票種定義與庫存管理
+   - `Seat` 模型: 座位設置與狀態追蹤
+   - `SeatGroup` 模型: 可重複使用的座位組設定
+   - 對應遷移檔案: 
+     - `2025_05_12_122951_create_events_table.php`
+     - `2025_05_12_123703_create_tickets_table.php`
+     - `2025_05_12_123933_create_seats_table.php`
+     - `2025_05_12_122926_create_seat_groups_table.php`
+
+3. **訂單和購票功能**:
+   - `Order` 模型: 訂單管理和支付處理
+   - `OrderItem` 模型: 訂單明細和票券狀態
+   - 對應遷移檔案:
+     - `2025_05_12_124651_create_orders_table.php`
+     - `2025_05_12_125010_create_order_items_table.php`
+
+4. **表單和簽到功能**:
+   - `CustomForm` 模型: 客製化表單定義
+   - `CustomFormField` 模型: 表單欄位設置
+   - `FormResponse` 模型: 用戶表單回應
+   - `CheckIn` 模型: 活動簽到記錄
+   - 對應遷移檔案:
+     - `2025_05_12_122834_create_custom_forms_table.php`
+     - `2025_05_12_122839_create_custom_form_fields_table.php`
+     - `2025_05_12_125142_create_form_responses_table.php`
+     - `2025_05_12_125250_create_check_ins_table.php`
+
+#### 5.3 關聯和業務邏輯實現
+
+在模型中，我們實現了以下關鍵功能：
+
+1. **關聯定義**:
+   - 使用 Laravel Eloquent 關聯 (hasMany, belongsTo, hasOne 等)
+   - 建立適當的外鍵約束和級聯刪除規則
+
+2. **業務邏輯方法**:
+   - 票種可用性檢查 (`isAvailable()`)
+   - 訂單狀態管理 (`markAsPaid()`, `cancel()`)
+   - 票券簽到功能 (`markAsCheckedIn()`)
+   - 座位狀態管理和防重複售出機制
+
+3. **輔助功能**:
+   - 自動產生訂單編號和票券代碼
+   - 表單回應格式化 (`getFormattedValue()`)
+   - 簽到資訊整合 (`getTicketInfo()`)
+
+#### 5.4 下一步工作建議
+
+資料庫設計和模型已完成，接下來建議專注於：
+
+1. **種子資料**: 建立初始測試資料
+2. **Livewire 元件**: 開發前端互動元件，特別是票券選擇和結帳流程
+3. **控制器和路由**: 實現前後台的控制器邏輯
+4. **授權策略**: 使用 Laravel Policies 定義不同角色的權限
+5. **金流整合**: 實現藍新金流的完整支付流程
+6. **事件監聽器**: 處理訂單狀態變更和通知
+
+### 6. 種子資料實現紀錄
+
+為了方便測試和開發，我們建立了一組測試用的種子資料，包含以下內容：
+
+#### 6.1 用戶資料
+- 系統管理員 (admin@example.com, 密碼: password)
+- 工作人員 (staff@example.com, 密碼: password)
+- 測試用戶 (user@example.com, 密碼: password)
+
+#### 6.2 活動與票種
+- 活動：「2025 台北春季音樂會」，包含完整的活動資訊
+- 票種：
+  - 全票 (500元，普通票)
+  - 學生票 (300元，普通票)
+  - 指定座位票 (800元，座位票)
+
+#### 6.3 座位配置
+- 建立「音樂廳標準配置」座位組
+- 為指定座位票建立 A-E 排座位，每排 10 個座位
+
+#### 6.4 表單設定
+- 建立「基本聯絡資訊表單」，包含以下欄位：
+  - 緊急聯絡人 (文字欄位)
+  - 緊急聯絡人電話 (文字欄位)
+  - 飲食偏好 (單選欄位，選項：葷食/素食)
+
+#### 6.5 訂單資料
+- 建立一筆測試用戶的已付款訂單
+- 包含兩張全票
+- 填寫完整的表單回應
+
+這些種子資料提供了基本的測試環境，方便開發過程中進行功能測試和展示。透過命令 `php artisan migrate:fresh --seed` 可以快速重建所有表格並填充測試資料。
+
+#### 6.6 資料工廠
+
+我們還開發了一系列資料工廠 (Factories)，方便在開發過程中建立更多自訂的測試資料：
+
+- UserFactory: 用於建立不同角色的用戶
+- EventFactory: 用於建立各種狀態的活動
+- TicketFactory: 用於建立各種類型的票種 (普通票、座位票、VIP票)
+- SeatFactory: 用於建立座位和座位組
+- CustomFormFactory 和 CustomFormFieldFactory: 用於建立客製化表單與欄位
+
+這些工廠遵循真實場景設計，能產生符合實際應用的測試資料，有助於系統的開發和測試。
+
+### 7. 目前專案進度與路由總結
+
+#### 7.1 已完成功能
+
+1. **資料庫架構**
+   - 使用者 (User) 模型與認證系統
+   - 活動 (Event) 模型與管理
+   - 票種 (Ticket) 模型與管理
+   - 座位 (Seat) 模型與管理
+   - 訂單 (Order) 模型與管理
+   - 表單 (CustomForm) 模型與管理
+
+2. **活動分類功能**
+   - 資料庫遷移新增 type 欄位
+   - Event 模型中定義活動類型常數
+   - 實作種子資料，建立多種不同類型的活動
+   - 前端頁面支援依類型篩選與顯示活動
+
+3. **前端功能頁面**
+   - 首頁顯示精選與最新活動
+   - 活動列表頁面 (含搜尋與篩選功能)
+   - 活動詳情頁面 (含票種選擇)
+   - 活動類型分類頁面
+
+#### 7.2 主要路由結構
+
+| 頁面 | 路由 | 說明 |
+|------|------|------|
+| 首頁 | `/` | 網站入口頁，顯示精選活動和分類導航 |
+| 活動列表 | `/events` | 所有活動的列表頁，支援搜尋和篩選 |
+| 活動類型頁 | `/events/type/{type}` | 依類型顯示活動，如音樂會、戲劇等 |
+| 活動詳情 | `/events/{id}` | 顯示特定活動的詳細資訊及票種選項 |
+| 結帳頁面 | `/checkout` | 購票結帳流程頁面 |
+| 用戶儀表板 | `/user` | 用戶個人頁面 (需登入) |
+| 用戶訂單 | `/user/orders` | 用戶訂單列表頁面 (需登入) |
+| 用戶票券 | `/user/tickets` | 用戶票券列表頁面 (需登入) |
+| 用戶設定 | `/settings/*` | 用戶設定相關頁面 (需登入) |
+
+#### 7.3 控制器與模型結構
+
+- **控制器**
+  - `EventController`: 處理活動顯示、篩選和搜尋
+    - `index()`: 活動列表
+    - `show($id)`: 活動詳情
+    - `byType($type)`: 依類型顯示活動
+
+- **模型**
+  - `Event`: 活動模型，包含類型定義和狀態管理
+    - 重要常數: `TYPE_CONCERT`, `TYPE_DRAMA`, `TYPE_EXHIBITION` 等
+    - 輔助方法: `getTypeNames()`, `getTypeNameAttribute()`
+    - 活動狀態方法: `isPublished()`, `isEnded()`, `isActive()`
+
+#### 7.4 重要上下文資訊
+
+1. **活動類型**
+   - `concert`: 音樂會
+   - `drama`: 戲劇表演
+   - `exhibition`: 藝術展覽
+   - `dance`: 舞蹈演出
+   - `workshop`: 工作坊
+   - `lecture`: 講座
+   - `festival`: 藝術節
+   - `other`: 其他
+
+2. **活動狀態**
+   - `draft`: 草稿
+   - `published`: 已發布
+   - `unpublished`: 已下架
+
+3. **環境設定**
+   - Laravel 12
+   - PHP 8+
+   - MySQL 8+
+   - 前端: Blade + Livewire + Alpine.js + Flux UI
+
+4. **開發注意事項**
+   - 所有模型使用 UUID 作為主鍵
+   - 模型使用軟刪除功能防止資料遺失
+   - 票種與座位採用關聯設計防止超賣
+   - 活動發佈需設定發佈時間
+   - 種子資料提供測試用的用戶、活動、票種
+
+#### 7.5 後續開發規劃
+
+1. **購票流程**
+   - 實作 LiveWire 購票元件
+   - 整合藍新金流
+   - 實作購買確認與訂單生成
+
+2. **票券管理**
+   - 電子票券生成
+   - QR Code 顯示
+   - 入場掃碼功能
+
+3. **後台管理**
+   - 活動管理介面
+   - 訂單管理
+   - 報表與統計
+
+4. **系統優化**
+   - 快取機制
+   - 搜尋優化
+   - 交易機制防止超賣
+
+### 8. 詳細路由與視圖結構
+
+#### 8.1 完整網站路由列表
+
+| 方法      | 網址                       | 路由名稱                | 控制器/動作                            | 說明                           |
+|----------|----------------------------|------------------------|--------------------------------------|-------------------------------|
+| GET/HEAD | /                          | home                   | 閉包函數                              | 網站首頁                       |
+| GET/HEAD | /checkout                  | checkout               | 閉包函數                              | 結帳頁面                       |
+| GET/HEAD | /events                    | events.index           | Client\EventController@index         | 活動列表頁                     |
+| GET/HEAD | /events/type/{type}        | events.byType          | Client\EventController@byType        | 活動類型頁                     |
+| GET/HEAD | /events/{id}               | events.show            | Client\EventController@show          | 活動詳情頁                     |
+| GET/HEAD | /user                      | user.dashboard         | 閉包函數                              | 用戶儀表板                     |
+| GET/HEAD | /user/orders               | user.orders.index      | 閉包函數                              | 用戶訂單列表                   |
+| GET/HEAD | /user/orders/{id}          | user.orders.show       | 閉包函數                              | 用戶訂單詳情                   |
+| GET/HEAD | /user/tickets              | user.tickets.index     | 閉包函數                              | 用戶票券列表                   |
+| GET/HEAD | /user/tickets/{id}         | user.tickets.show      | 閉包函數                              | 用戶票券詳情                   |
+| GET/HEAD | /settings/profile          | settings.profile       | App\Livewire\Settings\Profile        | 個人資料設定                   |
+| GET/HEAD | /settings/password         | settings.password      | App\Livewire\Settings\Password       | 密碼設定                       |
+| GET/HEAD | /settings/appearance       | settings.appearance    | App\Livewire\Settings\Appearance     | 外觀設定                       |
+| GET/HEAD | /login                     | login                  | App\Livewire\Auth\Login              | 登入頁面                       |
+| GET/HEAD | /register                  | register               | App\Livewire\Auth\Register           | 註冊頁面                       |
+| GET/HEAD | /forgot-password           | password.request       | App\Livewire\Auth\ForgotPassword     | 忘記密碼頁面                   |
+| GET/HEAD | /reset-password/{token}    | password.reset         | App\Livewire\Auth\ResetPassword      | 重設密碼頁面                   |
+| GET/HEAD | /verify-email              | verification.notice    | App\Livewire\Auth\VerifyEmail        | 電子郵件驗證通知頁             |
+| GET/HEAD | /verify-email/{id}/{hash}  | verification.verify    | Auth\VerifyEmailController           | 電子郵件驗證頁面               |
+| POST     | /logout                    | logout                 | App\Livewire\Actions\Logout          | 登出操作                       |
+
+#### 8.2 視圖檔案結構
+
+```
+resources/views/
+├── client/                          # 客戶端視圖目錄
+│   ├── events/                      # 活動相關視圖
+│   │   ├── index.blade.php          # 活動列表頁面
+│   │   ├── show.blade.php           # 活動詳情頁面
+│   │   └── by_type.blade.php        # 活動類型分類頁面
+│   ├── user/                        # 用戶中心相關視圖
+│   │   ├── dashboard.blade.php      # 用戶儀表板頁面
+│   │   ├── orders/                  # 訂單相關視圖
+│   │   │   ├── index.blade.php      # 訂單列表頁面
+│   │   │   └── show.blade.php       # 訂單詳情頁面
+│   │   └── tickets/                 # 票券相關視圖
+│   │       ├── index.blade.php      # 票券列表頁面
+│   │       └── show.blade.php       # 票券詳情頁面
+│   ├── home.blade.php               # 首頁視圖
+│   └── checkout.blade.php           # 結帳頁面視圖
+├── components/                      # 組件視圖
+│   └── layouts/                     # 布局組件
+│       └── client.blade.php         # 主要客戶端布局
+└── ...                              # 其他視圖目錄
+```
+
+#### 8.3 主要頁面路徑和功能
+
+1. **首頁** (`/`)
+   - 顯示精選活動輪播
+   - 顯示最新活動列表
+   - 提供活動分類導航卡片
+   - 電子報訂閱區域
+
+2. **活動列表頁** (`/events`)
+   - 左側篩選欄（活動類型、搜尋框）
+   - 活動卡片網格顯示
+   - 分頁導航
+   - 顯示符合篩選條件的活動
+
+3. **活動類型頁** (`/events/type/{type}`)
+   - 頂部顯示活動類型名稱
+   - 活動分類快速切換導航
+   - 顯示該類型的所有活動列表
+   - 分頁導航
+
+4. **活動詳情頁** (`/events/{id}`)
+   - 活動封面圖
+   - 活動標題、類型標籤
+   - 活動日期時間與地點
+   - 活動詳細描述
+   - 右側票券購買區域
+   - 備註事項與退款政策
+
+5. **結帳頁面** (`/checkout`)
+   - 票券資訊確認
+   - 購票人資料表單
+   - 支付方式選擇
+   - 訂單提交按鈕
+
+6. **用戶儀表板** (`/user`)
+   - 用戶資訊概覽
+   - 訂單和票券統計數據
+   - 最近訂單和即將參加的活動
+
+7. **訂單列表頁** (`/user/orders`)
+   - 所有歷史訂單列表
+   - 訂單狀態過濾選項
+   - 訂單搜尋功能
+
+8. **訂單詳情頁** (`/user/orders/{id}`)
+   - 訂單基本資訊
+   - 購買的票券明細
+   - 付款資訊
+   - 操作按鈕（取消訂單、申請退款等）
+
+9. **票券列表頁** (`/user/tickets`)
+   - 已購買的有效票券列表
+   - 票券狀態篩選
+
+10. **票券詳情頁** (`/user/tickets/{id}`)
+    - 票券資訊
+    - 活動資訊
+    - 入場 QR Code 顯示
+    - 票券轉贈選項
+
+#### 8.4 視圖修正互動
+
+##### /
+
+問題修正：
+1. 各項連結是錯誤尤其是活動頁面連結
+2. 活動 card 應該代入圖片，但是保留目前的色塊設計，當組織沒有提供圖片時，使用色塊取代。
+3. 修正在 RWD 進入手機版型的時候各項資訊的破版
+4. 活動和其分類使用由 controller 後端提供的資料
+5. 訂閱電子報的部分需要新增一個 model 和資料表來紀錄
+
+##### /events
+
+問題修正：
+1. /events 如附件圖片「尚未開放售票」資訊破版。請連同首頁的部分一併調整統一，另外首頁的效果太亮，字體太大請統一調整
+2. 分頁的效果請檢查是否有破版 Showing 1 to 1 of 6 results 的部分請使用繁體中文
+
+### 4. 進度追蹤與變更記錄
+
+#### 4.1 已完成變更
+
+1. **Logo 修改**
+   - 移除 Laravel 預設的 SVG logo
+   - 替換為文字 "藝文活動網"
+   - 設定為黑色字體（`text-black`）
+   - 保留字體大小（`text-xl`）和粗體（`font-bold`）設定
+
+2. **路由設定**
+   - 已設定 `user.dashboard` 路由
+   - 已設定相關的訂單和票券管理路由
+   - 已設定設定頁面相關路由
+
+3. **使用者帳戶模組中文化**
+   - 登入/註冊頁面
+   - 忘記密碼頁面
+   - 密碼重設頁面
+   - 密碼確認頁面
+   - 電子郵件驗證頁面
+
+#### 4.2 待完成項目
+
+1. **使用者帳戶模組**（3.1.1）
+   - OAuth 第三方登入整合（Google, Facebook）
+   - 個人資料管理功能
+   - 密碼修改功能
+
+2. **活動瀏覽與搜尋模組**（3.1.2）
+   - 首頁設計與實作
+   - 活動列表頁面
+   - 活動詳細資訊頁面
+   - 搜尋和篩選功能
+
+3. **票券購買與結帳模組**（3.1.3）
+   - 購買與結帳頁面
+   - 藍新金流整合
+   - 訂單完成頁面
+
+4. **用戶票務與訂單管理模組**（3.1.4）
+   - 訂單查詢與管理
+   - 票券管理
+   - 退款功能
+
+#### 4.3 下一步優先事項
+
+1. 完成使用者帳戶模組的剩餘功能：
+   - 實作 OAuth 登入
+   - 完成個人資料管理
+   - 實作密碼修改功能
+
+2. 開始規劃活動模組：
+   - 設計資料庫結構
+   - 實作活動列表和詳細頁面
+   - 開發搜尋和篩選功能
+
+3. 規劃票券購買流程：
+   - 設計購物車功能
+   - 整合藍新金流
+   - 實作訂單管理系統

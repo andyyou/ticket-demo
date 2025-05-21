@@ -1,52 +1,34 @@
-<div class="flex flex-col gap-6">
-    <x-auth-header :title="__('Log in to your account')" :description="__('Enter your email and password below to log in')" />
-
-    <!-- Session Status -->
-    <x-auth-session-status class="text-center" :status="session('status')" />
-
-    <form wire:submit="login" class="flex flex-col gap-6">
-        <!-- Email Address -->
-        <flux:input
-            wire:model="email"
-            :label="__('Email address')"
-            type="email"
-            required
-            autofocus
-            autocomplete="email"
-            placeholder="email@example.com"
-        />
-
-        <!-- Password -->
-        <div class="relative">
+<div class="min-h-screen bg-neutral-100 flex items-center justify-center py-12 px-4">
+    <flux:card class="w-full max-w-md p-8">
+        <div class="mb-8 text-center">
+            <flux:heading size="xl">會員登入</flux:heading>
+            <flux:subheading>請輸入您的電子郵件與密碼</flux:subheading>
+        </div>
+        <form wire:submit="login" class="flex flex-col gap-6">
+            <flux:input
+                wire:model="email"
+                label="電子郵件"
+                type="email"
+                required
+                autofocus
+                autocomplete="email"
+                placeholder="email@example.com"
+            />
             <flux:input
                 wire:model="password"
-                :label="__('Password')"
+                label="密碼"
                 type="password"
                 required
                 autocomplete="current-password"
-                :placeholder="__('Password')"
+                placeholder="密碼"
                 viewable
             />
-
-            @if (Route::has('password.request'))
-                <flux:link class="absolute end-0 top-0 text-sm" :href="route('password.request')" wire:navigate>
-                    {{ __('Forgot your password?') }}
-                </flux:link>
-            @endif
+            <flux:checkbox wire:model="remember" label="記住我" />
+            <flux:button variant="primary" type="submit" class="w-full">登入</flux:button>
+        </form>
+        <div class="mt-6 text-center text-sm text-zinc-600">
+            還沒有帳號？
+            <flux:link :href="route('register')" wire:navigate>註冊</flux:link>
         </div>
-
-        <!-- Remember Me -->
-        <flux:checkbox wire:model="remember" :label="__('Remember me')" />
-
-        <div class="flex items-center justify-end">
-            <flux:button variant="primary" type="submit" class="w-full">{{ __('Log in') }}</flux:button>
-        </div>
-    </form>
-
-    @if (Route::has('register'))
-        <div class="space-x-1 rtl:space-x-reverse text-center text-sm text-zinc-600 dark:text-zinc-400">
-            {{ __('Don\'t have an account?') }}
-            <flux:link :href="route('register')" wire:navigate>{{ __('Sign up') }}</flux:link>
-        </div>
-    @endif
+    </flux:card>
 </div>
