@@ -1,43 +1,42 @@
-<section class="w-full">
-    @include('partials.settings-heading')
+<div>
+    <!-- 頁頭區域 -->
+    <div class="bg-white py-8">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 class="text-3xl font-bold text-zinc-900 mb-2">帳號設定</h1>
+            <p class="text-zinc-600">管理您的個人資料與安全</p>
+        </div>
+    </div>
 
-    <x-settings.layout :heading="__('Profile')" :subheading="__('Update your name and email address')">
-        <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
-            <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
-
-            <div>
-                <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
-
-                @if (auth()->user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail &&! auth()->user()->hasVerifiedEmail())
-                    <div>
-                        <flux:text class="mt-4">
-                            {{ __('Your email address is unverified.') }}
-
-                            <flux:link class="text-sm cursor-pointer" wire:click.prevent="resendVerificationNotification">
-                                {{ __('Click here to re-send the verification email.') }}
-                            </flux:link>
-                        </flux:text>
-
-                        @if (session('status') === 'verification-link-sent')
-                            <flux:text class="mt-2 font-medium !dark:text-green-400 !text-green-600">
-                                {{ __('A new verification link has been sent to your email address.') }}
-                            </flux:text>
-                        @endif
+    <!-- 主內容區域 -->
+    <div class="bg-neutral-100 py-4">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- 個人資料卡片 -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <div class="flex flex-col md:flex-row md:items-center gap-6">
+                    <div class="flex-shrink-0">
+                        <span class="inline-flex items-center justify-center h-20 w-20 rounded-full bg-purple-100">
+                            <span class="text-xl font-medium text-purple-600">{{ substr(Auth::user()->name, 0, 1) }}</span>
+                        </span>
                     </div>
-                @endif
-            </div>
-
-            <div class="flex items-center gap-4">
-                <div class="flex items-center justify-end">
-                    <flux:button variant="primary" type="submit" class="w-full">{{ __('Save') }}</flux:button>
+                    <div class="flex-1">
+                        <h2 class="text-2xl font-bold text-zinc-900 mb-1">{{ Auth::user()->name }}</h2>
+                        <p class="text-zinc-600 mb-4">{{ Auth::user()->email }}</p>
+                        <livewire:profile.update-profile-information-form />
+                    </div>
                 </div>
-
-                <x-action-message class="me-3" on="profile-updated">
-                    {{ __('Saved.') }}
-                </x-action-message>
             </div>
-        </form>
-
-        <livewire:settings.delete-user-form />
-    </x-settings.layout>
-</section>
+            <!-- 密碼變更 -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <h2 class="text-xl font-bold text-zinc-900 mb-2">密碼變更</h2>
+                <p class="text-zinc-600 mb-6">請使用安全且獨特的新密碼</p>
+                <livewire:profile.update-password-form />
+            </div>
+            <!-- 刪除帳號 -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <h2 class="text-xl font-bold text-red-600 mb-2">刪除帳號</h2>
+                <p class="text-zinc-600 mb-6">刪除後資料將無法復原，請謹慎操作</p>
+                <livewire:profile.delete-user-form />
+            </div>
+        </div>
+    </div>
+</div>

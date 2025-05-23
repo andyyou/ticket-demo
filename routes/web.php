@@ -57,12 +57,13 @@ Route::middleware(['auth', 'verified'])->prefix('user')->name('user.')->group(fu
 });
 
 // 設定路由
-Route::middleware(['auth'])->group(function () {
-    Route::redirect('settings', 'settings/profile');
-
-    Route::get('settings/profile', Profile::class)->name('settings.profile');
-    Route::get('settings/password', Password::class)->name('settings.password');
-    Route::get('settings/appearance', Appearance::class)->name('settings.appearance');
+Route::middleware(['auth'])->prefix('settings')->name('settings.')->group(function () {
+    Route::get('/', function () {
+        return redirect()->route('settings.profile');
+    });
+    Route::get('/profile', \App\Livewire\Settings\Profile::class)->name('profile');
+    Route::get('/password', \App\Livewire\Settings\Password::class)->name('password');
+    Route::get('/appearance', \App\Livewire\Settings\Appearance::class)->name('appearance');
 });
 
 require __DIR__.'/auth.php';
